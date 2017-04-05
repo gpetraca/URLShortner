@@ -70,55 +70,50 @@ namespace UrlShortner.Controllers
         [HttpPost]
         public ActionResult ShorterURL(string longUrl)
         {
-            if (string.IsNullOrEmpty(longUrl))
+            if (string.IsNullOrEmpty(longUrl)){
                 return Json(new { status = false, message = "Por favor informe a URL" }, JsonRequestBehavior.AllowGet);
-            else
-            {
-                if (!new URL().checaProtocoloHttp(longUrl))
-                    longUrl = "http://" + longUrl;
-
-                // Verifica se a URL já se encontra no BD
-                URL existingURL = db.Urls.Where(u => u.LongUrl.ToLower() == longUrl.ToLower()).FirstOrDefault();
-
-                if (existingURL == null)
-                {
-                    URL shortUrl = new URL()
-                    {
-                        LongUrl = longUrl,
-                        GeneratedDate = DateTime.UtcNow,
-                        Hits = 0
-                    };
-                    string userId = User.Identity.GetUserId();
-
-                    if (shortUrl.checaExisteLong())
-                    {
-                        shortUrl.geraUrlRandomica();
-                        if (!string.IsNullOrEmpty(userId)) // somente pessoal autorizado
-                            shortUrl.UserId = userId;
-
-                        db.Urls.Add(shortUrl);
-                        try
-                        {
-                            db.SaveChanges();
-                            shortUrl.ShortUrl = Request.Url.Scheme + "://" + Request.Url.Authority + "/" + shortUrl.ShortUrl;
-
-                            return Json(new { status = true, url = shortUrl }, JsonRequestBehavior.AllowGet);
-                        }
-                        catch (Exception exc)
-                        {
-                            log.Error(exc);
-                            return Json(new { status = false, message = exc.Message }, JsonRequestBehavior.AllowGet);
-                        }
-                    }
-                    else
-                        return Json(new { status = false, message = "URL informada é inválida" }, JsonRequestBehavior.AllowGet);
-                }
-                else
-                {
-                    existingURL.ShortUrl = Request.Url.Scheme + "://" + Request.Url.Authority + "/" + existingURL.ShortUrl;
-                    return Json(new { status = true, url = existingURL }, JsonRequestBehavior.AllowGet);
-                }
             }
+            if (!new URL().checaProtocoloHttp(longUrl))
+                longUrl = "http://" + longUrl;
+
+            // Verifica se a URL já se encontra no BD
+            URL existingURL = db.Urls.Where(u => u.LongUrl.ToLower() == longUrl.ToLower()).FirstOrDefault();
+            if (existingURL != null){
+                existingURL.ShortUrl = Request.Url.Scheme + "://" + Request.Url.Authority + "/" + existingURL.ShortUrl;
+                return Json(new { status = true, url = existingURL }, JsonRequestBehavior.AllowGet);
+            }
+
+            URL shortUrl = new URL()
+            {
+                LongUrl = longUrl,
+                GeneratedDate = DateTime.UtcNow,
+                Hits = 0
+            };
+            string userId = User.Identity.GetUserId();
+            
+            if (!shortUrl.checaExisteLong()){
+                return Json(new { status = false, message = "URL informada é inválida" }, JsonRequestBehavior.AllowGet);
+            }
+
+
+            shortUrl.geraUrlRandomica();
+            if (!string.IsNullOrEmpty(userId)) // somente pessoal autorizado
+                shortUrl.UserId = userId;
+
+            db.Urls.Add(shortUrl);
+            try
+            {
+                db.SaveChanges();
+                shortUrl.ShortUrl = Request.Url.Scheme + "://" + Request.Url.Authority + "/" + shortUrl.ShortUrl;
+
+                return Json(new { status = true, url = shortUrl }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception exc)
+            {
+                log.Error(exc);
+                return Json(new { status = false, message = exc.Message }, JsonRequestBehavior.AllowGet);
+            }
+                
         }
     }
 }
